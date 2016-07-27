@@ -14,6 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.json.JSONObject;
 
+import uk.co.thomasc.pgo.proto.PTCConnection;
+import uk.co.thomasc.pgo.util.LatLng;
+import uk.co.thomasc.pgo.util.Mongo;
+import uk.co.thomasc.pgo.util.Util;
+
 public class Main {
 	
 	private ExecutorService executor;
@@ -43,11 +48,16 @@ public class Main {
 		//searchSpace.addAll(generateSearchGrid(new LatLng(53.3777196,-1.4635990), size)); // Sheffield - 53.4095535,-1.3798237
 
 		Mongo mongo = new Mongo(obj.getJSONObject("mongo"));
+		PTCConnection conn = new PTCConnection(obj.getJSONObject("pgo"));
 		
 		while (true) {
-			PTCConnection conn = new PTCConnection(obj.getJSONObject("pgo"));
-			
 			try {
+				if (!conn.connect()) {
+					System.out.println("Error connecting to pokemon go api");
+					Thread.sleep(5000);
+					continue;
+				}
+				
 				t = c = 0;
 				List<Callable<Integer>> tasks = new ArrayList<Callable<Integer>>();
 				for (LatLng pos : searchSpace) {
@@ -68,8 +78,6 @@ public class Main {
 				System.out.println("Done, found " + totalPokes + " pokemon");
 			} catch (Exception e) {
 				e.printStackTrace();
-			} finally {
-				conn.disconnect();
 			}
 		}
 	}

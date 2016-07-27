@@ -6,10 +6,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.ClientMapCell;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.HeartbeatPayload;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.PokemonFortProto;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.WildPokemonProto;
+import uk.co.thomasc.pgo.proto.PTCConnection;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.ClientMapCell;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.HeartbeatPayload;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.PokemonFortProto;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.WildPokemonProto;
+import uk.co.thomasc.pgo.util.LatLng;
+import uk.co.thomasc.pgo.util.Mongo;
 
 import com.google.common.geometry.S2CellId;
 import com.mongodb.BasicDBList;

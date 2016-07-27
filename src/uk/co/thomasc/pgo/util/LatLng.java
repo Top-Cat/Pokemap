@@ -1,4 +1,4 @@
-package uk.co.thomasc.pgo;
+package uk.co.thomasc.pgo.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

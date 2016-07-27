@@ -1,4 +1,4 @@
-package uk.co.thomasc.pgo;
+package uk.co.thomasc.pgo.proto;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -20,18 +20,20 @@ import org.json.JSONObject;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop;
-import uk.co.thomasc.pgo.PokemonOuterClass.UnknownAuth;
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop.AuthInfo;
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop.MessageQuad;
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop.MessageSingleInt;
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop.MessageSingleString;
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop.Requests;
-import uk.co.thomasc.pgo.PokemonOuterClass.RequestEnvelop.AuthInfo.JWT;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.HeartbeatPayload;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.ProfilePayload;
-import uk.co.thomasc.pgo.PokemonOuterClass.ResponseEnvelop.Profile.Currency;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.UnknownAuth;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop.AuthInfo;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop.MessageQuad;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop.MessageSingleInt;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop.MessageSingleString;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop.Requests;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.RequestEnvelop.AuthInfo.JWT;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.HeartbeatPayload;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.ProfilePayload;
+import uk.co.thomasc.pgo.proto.PokemonOuterClass.ResponseEnvelop.Profile.Currency;
+import uk.co.thomasc.pgo.util.LatLng;
+import uk.co.thomasc.pgo.util.Util;
 
 public class PTCConnection {
 
@@ -56,8 +58,8 @@ public class PTCConnection {
 		
 		cm.setMaxTotal(2000);
 		cm.setDefaultMaxPerRoute(2000);
+		
 		this.httpClient = HttpClientBuilder.create().setConnectionManager(cm).build();
-		this.connect();
 	}
 	
 	public PTCConnection(JSONObject jsonObject) {
@@ -72,7 +74,7 @@ public class PTCConnection {
 		}
 	}
 	
-	private void connect() {
+	public boolean connect() {
 		String token = getLoginToken();
 		
 		if (token != null)  {
@@ -80,18 +82,18 @@ public class PTCConnection {
 			this.login_token = token;
 		}
 		
-		if (this.login_token == null) return;
+		if (this.login_token == null) return false;
 		
 		String endpoint = getApiEndpoint();
 		if (endpoint != null) {
 			this.endpoint = endpoint;
 		}
 		
-		if (this.endpoint == null) return;
+		if (this.endpoint == null) return false;
 		
-		ResponseEnvelop response = getProfile(this.endpoint);
+		ResponseEnvelop response = getProfile(this.endpoint, true);
 		
-		if (response == null || response.getPayloadCount() == 0) return;
+		if (response == null || response.getPayloadCount() == 0) return false;
 		
 		this.auth = response.getUnknown7();
 		
@@ -106,22 +108,25 @@ public class PTCConnection {
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
 		}
+		
+		return true;
 	}
 	
 	private String getApiEndpoint() {
-		String endpoint = getProfile(API_URL).getApiUrl();
-		if (endpoint != null) {
-			return String.format("https://%s/rpc", endpoint);
-		}
+		ResponseEnvelop response = getProfile(API_URL, true);
+		if (response == null) return null;
 		
-		return null;
+		String endpoint = response.getApiUrl();
+		if (endpoint == null || endpoint.length() == 0) return null;
+		
+		return String.format("https://%s/rpc", endpoint);
 	}
 	
-	private ResponseEnvelop getProfile(String url) {
-		return getProfile(url, 0, 0, null);
+	private ResponseEnvelop getProfile(String url, boolean useAuth) {
+		return getProfile(url, useAuth, 0, 0, null);
 	}
 	
-	private ResponseEnvelop getProfile(String url, long lat, long lng, List<Requests> req) {
+	private ResponseEnvelop getProfile(String url, boolean useAuth, long lat, long lng, List<Requests> req) {
 		RequestEnvelop.Builder msg = RequestEnvelop.newBuilder()
 			.setLatitude(lat)
 			.setLongitude(lng);
@@ -135,13 +140,13 @@ public class PTCConnection {
 			msg.addRequests(builder);
 		}
 		
-		return apiReq(url, msg);
+		return apiReq(url, useAuth, msg);
 	}
 	
-	private ResponseEnvelop apiReq(String api_endpoint, RequestEnvelop.Builder msg) {
+	private ResponseEnvelop apiReq(String api_endpoint, boolean useAuth, RequestEnvelop.Builder msg) {
 		HttpPost post = new HttpPost(api_endpoint);
 		
-		if (this.auth == null) {
+		if (this.auth == null || useAuth) {
 			msg.setAuth(AuthInfo.newBuilder()
 				.setProvider("ptc")
 				.setToken(JWT.newBuilder()
@@ -208,13 +213,14 @@ public class PTCConnection {
 				
 				future = httpClient.execute(post);
 				String token = EntityUtils.toString(future.getEntity()).split("&expires")[0];
-				return token.substring(token.indexOf("access_token=") + 13);
+				index = token.indexOf("access_token=");
+				return index >= 0 ? token.substring(index + 13) : null;
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.out.println("Error getting login token - " + e.getMessage());
 		}
 		
-		return "";
+		return null;
 	}
 
 	public HeartbeatPayload findPokemon(LatLng pos) throws IOException {
@@ -252,7 +258,7 @@ public class PTCConnection {
 			).buildPartial()
 		);
 		
-		ResponseEnvelop response = getProfile(this.endpoint, pos.getLatL(), pos.getLngL(), req);
+		ResponseEnvelop response = getProfile(this.endpoint, false, pos.getLatL(), pos.getLngL(), req);
 		if (response == null) return null;
 		return HeartbeatPayload.parseFrom(response.getPayload(0).toByteArray());
 	}

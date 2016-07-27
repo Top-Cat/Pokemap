@@ -1,0 +1,24 @@
+{
+	threads: 100,
+	pgo: {
+		user: "",
+		"pass": ""
+	},
+	mongo: {
+		user: "",
+		pass: ""
+	},
+	locations: [
+		{
+			lat: 53.8017278,
+			lng: -1.5619364,
+			size: 30
+		},
+		{
+			lat: 53.3777196,
+			lng: -1.4635990,
+			size: 30
+		}
+	]
+}
+			

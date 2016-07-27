@@ -1,4 +1,4 @@
-package uk.co.thomasc.pgo;
+package uk.co.thomasc.pgo.util;
 
 import java.net.UnknownHostException;
 import java.util.ArrayList;
